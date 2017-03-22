@@ -6,6 +6,7 @@ from pikaptcha.ptcexceptions import *
 #from pikaptcha.tos import *
 from pikaptcha.gmailv import *
 from pikaptcha.url import *
+from tos import accept_tos
 
 #from pgoapi.exceptions import AuthException, ServerSideRequestThrottlingException, NotLoggedInException
 import pprint
@@ -66,7 +67,7 @@ def parse_arguments(args):
     parser.add_argument(
         '-gp','--googlepass', type=str, default=None,
         help='This is the password for the google account and is require to activate auto verify when using the plus mail'
-    )    
+    )
     parser.add_argument(
         '-t','--textfile', type=str, default="usernames.txt",
         help='This is the location you want to save usernames.txt'
@@ -78,7 +79,7 @@ def parse_arguments(args):
     parser.add_argument(
         '-it','--inputtext', type=str, default=None,
         help='This is the location you want to read usernames in the format user:pass'
-    ) 
+    )
     parser.add_argument(
         '-sn','--startnum', type=int, default=None,
         help='If you specify both -u and -c, it will append a number to the end. This allows you to choose where to start from'
@@ -92,9 +93,13 @@ def parse_arguments(args):
         help='This is the location that will be spoofed when we verify TOS'
     )
     parser.add_argument(
+        '-hk','--hash-key', type=str, default=None,
+        help='HASH KEY YOU KNOW WHAT IT IS'
+    )
+    parser.add_argument(
         '-px','--proxy', type=str, default=None,
         help='Proxy to be used when accepting the Terms of Services. Must be host:port (ex. 1.1.1.1:80). Must be a HTTPS proxy.'
-    )        
+    )
 
     return parser.parse_args(args)
 
@@ -134,13 +139,13 @@ def entry():
         print("Your 2captcha balance is: " + captchabal)
         print("This run will cost you approximately: " + str(float(args.count)*0.003))
 
-    username = args.username    
-    
+    username = args.username
+
     if args.inputtext != None:
         print("Reading accounts from: " + args.inputtext)
         lines = [line.rstrip('\n') for line in open(args.inputtext, "r")]
         args.count = len(lines)
-        
+
     if _verify_settings({'args':args, 'balance':captchabal}):
         if (args.googlepass is not None):
             with open(args.textfile, "a") as ulist:
@@ -160,14 +165,11 @@ def entry():
             try:
                 try:
                     account_info = pikaptcha.random_account(username, args.password, args.email, args.birthday, args.plusmail, args.recaptcha, args.captchatimeout)
-                    
+
                     print('  Username:  {}'.format(account_info["username"]))
                     print('  Password:  {}'.format(account_info["password"]))
                     print('  Email   :  {}'.format(account_info["email"]))
-                    
-                    # Accept Terms Service
-                    #accept_tos(account_info["username"], account_info["password"], args.location, args.proxy)
-        
+
                     # Verify email
                     if (args.googlepass is not None):
                         if (args.googlemail is not None):
@@ -175,7 +177,10 @@ def entry():
                         else:
                             email_verify(args.plusmail, args.googlepass)
 
-                    # Append usernames 
+                    # Accept Terms Service
+                    accept_tos(account_info["username"], account_info["password"], args.location, args.proxy, args.hash_key)
+
+                    # Append usernames
                     with open(args.textfile, "a") as ulist:
                         if args.outputformat == "pkgo":
                             ulist.write(" -u " + account_info["username"]+" -p "+account_info["password"]+"")
@@ -183,7 +188,7 @@ def entry():
                             ulist.write("ptc,"+account_info["username"]+","+account_info["password"]+"\n")
                         else:
                             ulist.write(account_info["username"]+":"+account_info["password"]+"\n")
-                        
+
                         ulist.close()
                 # Handle account creation failure exceptions
                 except PTCInvalidPasswordException as err:
