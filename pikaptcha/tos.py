@@ -25,8 +25,8 @@ def accept_tos_helper(username, password, location, proxy, hash_key):
 
     device_info = generate_device_info()
     api = PGoApi(device_info=device_info)
-    if proxy != None:
-        api.set_proxy({"https":proxy})
+    if proxy is not None:
+        api.set_proxy({"https": proxy})
 
     location = location.replace(" ", "")
     location = location.split(",")
@@ -36,21 +36,224 @@ def accept_tos_helper(username, password, location, proxy, hash_key):
     if hash_key:
         key = hash_key
         api.activate_hash_server(key)
-    api.set_authentication(provider = 'ptc', username = username, password = password)
-    response = api.app_simulation_login()
-    if response == None:
-        print "Servers do not respond to login attempt. " + failMessage
-        return
+    loggedin = False
+    while loggedin is False:
+        try:
+            api.set_authentication(provider='ptc', username=username, password=password)
+        except:
+            print 'set_authentication failed, trying again in a sec'
+            time.sleep(random.uniform(2, 4))
+            continue
+        try:
+            response = api.app_simulation_login()
+        except:
+            print 'app_simulation_login failed, trying again in a sec'
+            time.sleep(random.uniform(2, 4))
+            continue
+        if response is None:
+            print "Servers do not respond to login attempt. " + failMessage
+            return
+        loggedin = True
+        print 'Logged in, now enter the loop'
+    done = False
+    while done is False:
+        request = api.create_request()
+        request.get_player(
+            player_locale={'country': 'US',
+                           'language': 'en',
+                           'timezone': 'America/Denver'})
+        try:
+            response = request.call().get('responses', {})
+        except:
+            print 'Get_Player failed, trying again in a sec'
+            time.sleep(random.uniform(2, 4))
+            continue
 
-    time.sleep(1)
-    req = api.create_request()
-    req.mark_tutorial_complete(tutorials_completed = 0, send_marketing_emails = False, send_push_notifications = False)
-    response = req.call()
-    if response == None:
-        print "Servers do not respond to accepting the ToS. " + failMessage
-        return
+        get_player = response.get('GET_PLAYER', {})
+        tutorial_state = get_player.get(
+            'player_data', {}).get('tutorial_state', [])
+        time.sleep(random.uniform(2, 4))
 
-    print('Accepted Terms of Service for {}'.format(username))
+        if 0 not in tutorial_state:
+            time.sleep(random.uniform(1, 5))
+            request = api.create_request()
+            request.mark_tutorial_complete(tutorials_completed=0)
+            print 'Sending 0 tutorials_completed (TOS acceptance)'
+            try:
+                request.call()
+            except:
+                print 'TOS acceptance failed, trying again in a sec'
+                time.sleep(random.uniform(2, 4))
+                continue
+
+        if 1 not in tutorial_state:
+            time.sleep(random.uniform(5, 12))
+            request = api.create_request()
+            request.set_avatar(player_avatar={
+                'hair': random.randint(1, 5),
+                'shirt': random.randint(1, 3),
+                'pants': random.randint(1, 2),
+                'shoes': random.randint(1, 6),
+                'avatar': random.randint(0, 1),
+                'eyes': random.randint(1, 4),
+                'backpack': random.randint(1, 5)
+            })
+            try:
+                request.call()
+            except:
+                print 'player_avater set failed, trying again in a sec'
+                time.sleep(random.uniform(2, 4))
+                continue
+
+            time.sleep(random.uniform(0.3, 0.5))
+
+            request = api.create_request()
+            request.mark_tutorial_complete(tutorials_completed=1)
+            print 'Sending 1 tutorials_completed'
+            try:
+                request.call()
+            except:
+                print 'tutorial_completed 1 failed, trying again in a sec'
+                time.sleep(random.uniform(2, 4))
+                continue
+
+            time.sleep(random.uniform(0.5, 0.6))
+            request = api.create_request()
+            request.get_player_profile()
+            print 'Fetching player profile'
+            try:
+                request.call()
+            except:
+                print 'Player profile fetch failed, trying again in a sec'
+                time.sleep(random.uniform(2, 4))
+                continue
+
+            starter_id = None
+            if 3 not in tutorial_state:
+                time.sleep(random.uniform(1, 1.5))
+                request = api.create_request()
+                request.get_download_urls(asset_id=[
+                    '1a3c2816-65fa-4b97-90eb-0b301c064b7a/1477084786906000',
+                    'aa8f7687-a022-4773-b900-3a8c170e9aea/1477084794890000',
+                    'e89109b0-9a54-40fe-8431-12f7826c8194/1477084802881000'])
+                print 'Grabbing some game assets.'
+                try:
+                    request.call()
+                except:
+                    print 'Get assets failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+
+                time.sleep(random.uniform(1, 1.6))
+                request = api.create_request()
+                try:
+                    request.call()
+                except:
+                    print 'After-Assets failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+
+                time.sleep(random.uniform(6, 13))
+                request = api.create_request()
+                starter = random.choice((1, 4, 7))
+                request.encounter_tutorial_complete(pokemon_id=starter)
+                print 'Catching the starter'
+                try:
+                    request.call()
+                except:
+                    print 'Starter_catch failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+
+                time.sleep(random.uniform(0.5, 0.6))
+                request = api.create_request()
+                request.get_player(
+                    player_locale={
+                        'country': 'US',
+                        'language': 'en',
+                        'timezone': 'America/Denver'})
+                try:
+                    responses = request.call().get('responses', {})
+                except:
+                    print 'Get_Player failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+
+                inventory = responses.get('GET_INVENTORY', {}).get(
+                    'inventory_delta', {}).get('inventory_items', [])
+                for item in inventory:
+                    pokemon = item.get('inventory_item_data', {}).get('pokemon_data')
+                    if pokemon:
+                        starter_id = pokemon.get('id')
+
+            if 4 not in tutorial_state:
+                time.sleep(random.uniform(5, 12))
+                request = api.create_request()
+                request.claim_codename(codename=username)
+                print 'Claiming codename'
+                try:
+                    request.call()
+                except:
+                    print 'Claim Codename failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+
+                time.sleep(random.uniform(1, 1.3))
+                request = api.create_request()
+                request.mark_tutorial_complete(tutorials_completed=4)
+                print 'Sending 4 tutorials_completed'
+                try:
+                    request.call()
+                except:
+                    print '4th tutorial failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+
+                time.sleep(0.1)
+                request = api.create_request()
+                request.get_player(
+                    player_locale={
+                        'country': 'US',
+                        'language': 'en',
+                        'timezone': 'America/Denver'})
+                try:
+                    request.call()
+                except:
+                    print 'Get_Player failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+
+            if 7 not in tutorial_state:
+                time.sleep(random.uniform(4, 10))
+                request = api.create_request()
+                request.mark_tutorial_complete(tutorials_completed=7)
+                print 'Sending 7 tutorials_completed'
+                try:
+                    request.call()
+                except:
+                    print '7th tutorial failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+
+            if starter_id:
+                time.sleep(random.uniform(3, 5))
+                request = api.create_request()
+                request.set_buddy_pokemon(pokemon_id=starter_id)
+                print 'Setting buddy pokemon'
+                try:
+                    request.call()
+                except:
+                    print 'Buddy set failed, trying again in a sec'
+                    time.sleep(random.uniform(2, 4))
+                    continue
+                done = True
+                time.sleep(random.uniform(0.8, 1.8))
+
+            # Sleeping before we start scanning to avoid Niantic throttling.
+            print 'Finished TOS and tutorial. Sleeping.'
+            done = True
+            time.sleep(random.uniform(1, 2))
+        return True
 
 
 # Generate random device info.
