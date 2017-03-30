@@ -101,19 +101,34 @@ def _validate_username(driver, username):
         print("Failed to check if the username is available!")
 
 
-def create_account(username, password, email, birthday, captchakey2, captchatimeout):
+def create_account(username, password, email, birthday, captchakey2, captchatimeout, proxy):
     if password is not None:
         _validate_password(password)
 
     print("Attempting to create user {user}:{pw}. Opening browser...".format(user=username, pw=password))
+
     if captchakey2 != None:
         dcap = dict(DesiredCapabilities.PHANTOMJS)
         dcap["phantomjs.page.settings.userAgent"] = user_agent
-        #driver = webdriver.PhantomJS(desired_capabilities=dcap)
-        driver = PhantomJS(desired_capabilities=dcap)
+        if proxy is not None:
+            service_args = [
+                '--proxy=' + proxy,
+                '--proxy-type=https',
+                ]
+            driver = PhantomJS(desired_capabilities=dcap, service_args=service_args)
+        else:
+            driver = webdriver.PhantomJS(desired_capabilities=dcap)
+
     else:
-        #driver = webdriver.Chrome()
-        driver = Chrome()
+        driver = webdriver.Chrome()
+        if proxy is not None:
+            service_args = [
+                '--proxy=' + proxy,
+                '--proxy-type=https',
+                ]
+            driver = Chrome(chrome_options=service_args)
+        else:
+            driver = Chrome()
         driver.set_window_size(600, 600)
 
     # Input age: 1992-01-08
@@ -236,7 +251,7 @@ def _validate_response(driver):
         raise PTCException("Generic failure. User was not created.")
 
 
-def random_account(username=None, password=None, email=None, birthday=None, plusmail=None, recaptcha=None, captchatimeout=1000):
+def random_account(username=None, password=None, email=None, birthday=None, plusmail=None, recaptcha=None, captchatimeout=1000, proxy=None):
     try_username = _random_string() if username is None else str(username)
     password = _random_password() if password is None else str(password)
     try_email = _random_email() if email is None else str(email)
@@ -252,7 +267,7 @@ def random_account(username=None, password=None, email=None, birthday=None, plus
     account_created = False
     while not account_created:
         try:
-            account_created = create_account(try_username, password, try_email, try_birthday, captchakey2, captchatimeout)
+            account_created = create_account(try_username, password, try_email, try_birthday, captchakey2, captchatimeout, proxy)
         except PTCInvalidNameException:
             if username is None:
                 try_username = _random_string()

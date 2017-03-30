@@ -37,18 +37,24 @@ def accept_tos_helper(username, password, location, proxy, hash_key):
         key = hash_key
         api.activate_hash_server(key)
     loggedin = False
+    consecutivefails = 0
     while loggedin is False:
+        if consecutivefails > 10:
+            print 'This account cannot login! (exceeded account creation for this quarter-hour or verify-email failed)'
         try:
             api.set_authentication(provider='ptc', username=username, password=password)
         except:
             print 'set_authentication failed, trying again in a sec'
             time.sleep(random.uniform(2, 4))
+            consecutivefails += 1
             continue
+        consecutivefails = 0
         try:
             response = api.app_simulation_login()
         except:
             print 'app_simulation_login failed, trying again in a sec'
             time.sleep(random.uniform(2, 4))
+            consecutivefails += 1
             continue
         if response is None:
             print "Servers do not respond to login attempt. " + failMessage
